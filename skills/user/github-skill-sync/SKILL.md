@@ -24,7 +24,7 @@ Do not use for `/mnt/skills/public/` or `/mnt/skills/examples/` — those are ma
 
 ## Auth
 
-Use the GitHub personal access token provided by the user in the current session. If no token has been provided, ask for it before proceeding. Never store or log the token.
+Use the fine-grained GitHub personal access token stored in user memory (scoped to jrhay/AITools, Contents read/write only). It is available in every session — no need to ask the user for it. Never log or display the token.
 
 ## Push procedure
 
