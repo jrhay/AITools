@@ -3,6 +3,8 @@ D&D Zoom Transcript Analysis Tools
 ====================================
 Analyzes Zoom meeting transcripts from D&D sessions to extract:
   - Dialog share per player (with DM lines removable)
+  - Time-present adjusted dialog share (accounts for late arrivals)
+  - Arrival and departure patterns (who's punctual, who stays late)
   - Silence-breaking patterns (who speaks after gaps)
   - Roll results: attacks, saves, skill checks, initiative, nat 20s/1s
   - Dirty 20s
@@ -167,6 +169,171 @@ def silence_breakers(parsed: list, threshold_seconds: float = 10.0, dm: str = No
     if dm:
         result['no_dm'] = summarize(nodm_breaks)
     return result
+
+
+# ---------------------------------------------------------------------------
+# Arrival and departure analysis
+# ---------------------------------------------------------------------------
+
+def arrival_departure(parsed: list) -> dict:
+    """
+    Determine when each player first and last spoke in the session,
+    as a proxy for arrival and departure time.
+
+    Note: players who join silently won't appear until their first spoken line,
+    so this slightly overstates lateness for quiet arrivals.
+
+    Args:
+        parsed: Output of parse_transcript()
+
+    Returns:
+        {
+          'session_duration': float,           # seconds from first to last line
+          'players': {
+            player: {
+              'first_spoke':   float,          # seconds from session start
+              'last_spoke':    float,          # seconds from session start
+              'time_present':  float,          # last_spoke - first_spoke (seconds)
+              'arrival_rank':  int,            # 1 = first to speak
+              'departure_rank': int,           # 1 = last to leave
+              'mins_late':     float,          # minutes after session start
+              'mins_early':    float,          # minutes before session end
+            }
+          },
+          'arrival_order':   [(player, seconds), ...],   # sorted earliest first
+          'departure_order': [(player, seconds), ...],   # sorted latest first
+        }
+    """
+    first_seen = {}
+    last_seen  = {}
+
+    for item in parsed:
+        p = item['player']
+        if p not in first_seen or item['start'] < first_seen[p]:
+            first_seen[p] = item['start']
+        if p not in last_seen or item['end'] > last_seen[p]:
+            last_seen[p] = item['end']
+
+    if not first_seen:
+        return {}
+
+    session_start = min(first_seen.values())
+    session_end   = max(last_seen.values())
+    duration      = session_end - session_start
+
+    # Normalize to session start = 0
+    arrival_order   = sorted(first_seen.items(), key=lambda x: x[1])
+    departure_order = sorted(last_seen.items(),  key=lambda x: -x[1])
+
+    players = {}
+    for rank_a, (p, first) in enumerate(arrival_order, 1):
+        rank_d = next(i for i, (pp, _) in enumerate(departure_order, 1) if pp == p)
+        players[p] = {
+            'first_spoke':    round(first - session_start, 1),
+            'last_spoke':     round(last_seen[p] - session_start, 1),
+            'time_present':   round(last_seen[p] - first, 1),
+            'arrival_rank':   rank_a,
+            'departure_rank': rank_d,
+            'mins_late':      round((first - session_start) / 60, 1),
+            'mins_early':     round((session_end - last_seen[p]) / 60, 1),
+        }
+
+    return {
+        'session_duration': round(duration, 1),
+        'players':          players,
+        'arrival_order':    [(p, round(t - session_start, 1)) for p, t in arrival_order],
+        'departure_order':  [(p, round(t - session_start, 1)) for p, t in departure_order],
+    }
+
+
+def aggregate_attendance(session_results: list) -> dict:
+    """
+    Aggregate arrival/departure stats across multiple sessions.
+
+    Args:
+        session_results: List of dicts, each being the output of arrival_departure()
+                         for one session, optionally with a 'session_name' key added.
+
+    Returns:
+        {
+          player: {
+            'sessions':        int,
+            'avg_arrival_rank': float,
+            'avg_mins_late':    float,
+            'avg_departure_rank': float,
+            'avg_mins_early':   float,
+            'avg_time_present_hrs': float,
+          }
+        }
+        sorted by avg_mins_late ascending (most punctual first).
+    """
+    stats = defaultdict(lambda: defaultdict(list))
+
+    for result in session_results:
+        for player, info in result.get('players', {}).items():
+            stats[player]['arrival_rank'].append(info['arrival_rank'])
+            stats[player]['mins_late'].append(info['mins_late'])
+            stats[player]['departure_rank'].append(info['departure_rank'])
+            stats[player]['mins_early'].append(info['mins_early'])
+            stats[player]['time_present'].append(info['time_present'])
+
+    summary = {}
+    for player, data in stats.items():
+        n = len(data['arrival_rank'])
+        summary[player] = {
+            'sessions':              n,
+            'avg_arrival_rank':      round(sum(data['arrival_rank'])    / n, 1),
+            'avg_mins_late':         round(sum(data['mins_late'])        / n, 1),
+            'avg_departure_rank':    round(sum(data['departure_rank'])   / n, 1),
+            'avg_mins_early':        round(sum(data['mins_early'])       / n, 1),
+            'avg_time_present_hrs':  round(sum(data['time_present'])     / n / 3600, 2),
+        }
+
+    return dict(sorted(summary.items(), key=lambda x: x[1]['avg_mins_late']))
+
+
+def time_adjusted_dialog_share(parsed: list, dm: str = None) -> dict:
+    """
+    Compute dialog share normalized by each player's time present in the session.
+    Useful for comparing talkative players who arrive late (e.g. Litza) against
+    players who were present for the full session.
+
+    Returns lines-per-hour for each player, plus raw count and time present,
+    sorted by lines-per-hour descending.
+
+    Args:
+        parsed: Output of parse_transcript()
+        dm:     If provided, exclude DM lines from the comparison.
+    """
+    counts     = defaultdict(int)
+    attendance = arrival_departure(parsed)
+
+    for item in parsed:
+        if dm and item['player'] == dm:
+            continue
+        counts[item['player']] += 1
+
+    result = {}
+    for player, count in counts.items():
+        time_hrs = attendance['players'].get(player, {}).get('time_present', 0) / 3600
+        lph = round(count / time_hrs, 1) if time_hrs > 0 else 0
+        result[player] = {
+            'count':          count,
+            'time_present_hrs': round(time_hrs, 2),
+            'lines_per_hour': lph,
+        }
+
+    return dict(sorted(result.items(), key=lambda x: -x[1]['lines_per_hour']))
+
+
+def _seconds_to_hm(s: float) -> str:
+    """Format seconds as Xh YYm string."""
+    s = int(s)
+    h, remainder = divmod(s, 3600)
+    m = remainder // 60
+    if h:
+        return f"{h}h {m:02d}m"
+    return f"{m}m"
 
 
 # ---------------------------------------------------------------------------
@@ -399,6 +566,20 @@ if __name__ == '__main__':
         print(f"\n=== Dialog share (players only, DM={dm} excluded) ===")
         for player, stats in dialog_share(parsed, dm=dm).items():
             print(f"  {player:12s}: {stats['count']:4d} lines ({stats['pct']}%)")
+
+    print("\n=== Arrival / departure ===")
+    att = arrival_departure(parsed)
+    print(f"  Session duration: {_seconds_to_hm(att['session_duration'])}")
+    print(f"  {'player':12s}  {'arrived':>10s}  {'left':>10s}  {'present':>10s}")
+    for player, info in sorted(att['players'].items(), key=lambda x: x[1]['arrival_rank']):
+        print(f"  {player:12s}  {_seconds_to_hm(info['first_spoke']):>10s}  "
+              f"{_seconds_to_hm(info['last_spoke']):>10s}  "
+              f"{_seconds_to_hm(info['time_present']):>10s}")
+
+    print("\n=== Time-adjusted dialog share (lines per hour present) ===")
+    for player, stats in time_adjusted_dialog_share(parsed, dm=dm).items():
+        print(f"  {player:12s}: {stats['lines_per_hour']:6.1f} lines/hr  "
+              f"({stats['count']} lines over {stats['time_present_hrs']:.2f}h)")
 
     print("\n=== Silence breakers (>10s gaps) ===")
     sb = silence_breakers(parsed, threshold_seconds=10.0, dm=dm)
