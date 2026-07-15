@@ -174,6 +174,20 @@ For each identified newsletter thread, call `get_thread` with `messageFormat: FU
 
 **Future Perfect (Vox):** Future Perfect emails from `newsletter@vox.com` are HTML-only — no plaintextBody available via get_thread. Do NOT call get_thread. Instead, when a Future Perfect email appears and the subject line looks relevant (science, AI, health, ethics, policy), use `web_fetch` on the article URL embedded in the snippet to retrieve the full text. Log as "Snippet only" if no web_fetch is performed, or "Full content" if web_fetch succeeds.
 
+**Managing HTML payload / context cost:** `get_thread` cannot be told to omit `htmlBody` — when it's present it comes back alongside `plaintextBody` regardless of `messageFormat`. For most sources this is harmless (plaintextBody dominates), but a known set of senders wrap a tiny amount of useful text in a very large HTML payload:
+
+- BBC News Briefing (`email.bbc.com`)
+- Santa Fe New Mexican, both editions (`santafenewmexican-email.com`)
+- Los Alamos Daily Post (Constant Contact / `shared1.ccsend.com`)
+- Reuters Daily Briefing and Semafor Flagship, occasionally
+
+If the tool result is large enough to trigger auto-redirect ("Tool result too large for context, stored at..."), that's actually the *good* outcome — use `bash_tool` (`python3 -c "import json; ..."`) to load the saved JSON and print only the `plaintextBody` field(s), never `cat` or `view` the raw file. This keeps the HTML out of context entirely.
+
+The harder case is when one of the senders above returns its bloated HTML *inline* rather than being auto-redirected — this has happened even for 50-100KB+ payloads and isn't fully predictable. There's no tool-level fix for this, so:
+1. Fetch these three local/wire sources **early** in Step 2, before lower-priority Tier 2/3 sources, so that if the run is running hot on context, it's a less important source that gets dropped rather than local news or the lead story.
+2. When reading a get_thread result, go straight to the `plaintextBody` value and ignore everything under `htmlBody` — don't read through it, quote it, or let it inform the digest even incidentally.
+3. If context is already tight after fetching several full-content sources, it's fine to fall back to the search-result snippet for one of these three and log it as "Snippet only (context budget)" rather than force a full fetch.
+
 ### Step 3: Write the digest
 
 Organize by theme, not by publication. Use the structure below.
