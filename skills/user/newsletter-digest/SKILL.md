@@ -19,7 +19,6 @@ Produces a synthesized, thematic daily digest from the user's Gmail newsletter i
 **National/international:**
 - Semafor Flagship — `flagship@semafor.com` — the primary Semafor edition; strongest international framing. Ignore all other Semafor sub-editions (DC, Gulf, Africa, Business, Media) if they appear in search results — their top stories are duplicated in the Flagship and they are consistently snippet-only.
 - Axios (AM, PM, and topic editions) — `axios.com` / look for sender containing "axios"
-- ProPublica (The Big Story and topic newsletters, irregular cadence) — `propublica.org` / look for sender containing "propublica"
 - The Dispatch — `newsletter.thedispatch.com`
 - Advisory Opinions  — `newsletter.scotusblog.com`
 - The Bulwark — `thebulwark.com` or `@substack.com` sender containing "thebulwark"
@@ -33,7 +32,6 @@ Produces a synthesized, thematic daily digest from the user's Gmail newsletter i
 - The Iranist — `@substack.com` sender containing "iranist" — periodic analysis on Iran; surface whenever present given current conflict relevance
 - Interruptrr (Elmira Bayrasli) — `@substack.com` sender containing "interruptrr" — weekly international affairs with feminist foreign policy lens
 - NOTUS — `notus.org` / look for sender containing "notus" — nonprofit reported journalism, domestic policy focus
-- The Ink (Anand Giridharadas) — `@substack.com` sender containing "anand" or "the ink" — left-progressive essay-driven
 - Decision Desk HQ (The Bellwether) — `@substack.com` senders containing "decisiondeskhq" — electoral and political trend analysis; data-driven but with a mild leftward editorial lean. Surface whenever present; keep treatment brief unless a finding is particularly significant.
 - Pew Research Center — `info@pewresearch.org` — low-volume; data-driven research and polling; include when present
 - USAFacts — `info@usafacts.org` — low-volume; nonpartisan data and statistics on government and society; include when present
@@ -59,14 +57,12 @@ When included, note the source and its analytical stance: "ISW, which takes a ha
 **Tech & Automotive (occasional):**
 - Stack Overflow newsletter — `stackoverflow.email`
 - ACM TechNews — `acm.org`
-- MotorTrend — `mail.motortrend.com`
 - CTA SmartBrief  —  `cta@smartbrief.com`
 - Wired — `wired@newsletters.wired.com` — center-left tech journalism. Surface only when a story is particularly significant; skip routine coverage silently.
 
 **Curiosity/delight (low priority):**
 
-- Everything Is Amazing — `everythingisamazing@substack.com` (caught by `@substack.com`) — not news; idle curiosity, wonder, and wandering.
-- 
+(none currently tracked — see removed-sources note below)
 
 ## Source bias handling
 
@@ -75,7 +71,7 @@ Apply these tiers consistently regardless of which sources appear on a given day
 **Tier 1 — Synthesize normally:**
 Sources that aim for neutrality or present balanced perspectives. Synthesize into the digest without special framing notes.
 
-- Semafor Flagship, Axios, ProPublica, Source NM, Los Alamos local outlets, The Santa Fe New Mexican, Nice News, International Intrigue, Stack Overflow, ACM TechNews, Ad Fontes Media, Pew Research Center, USAFacts, NOTUS, Everything Is Amazing, Reuters World News, BBC World News
+- Semafor Flagship, Axios, Source NM, Los Alamos local outlets, The Santa Fe New Mexican, Nice News, International Intrigue, Stack Overflow, ACM TechNews, Ad Fontes Media, Pew Research Center, USAFacts, NOTUS, Reuters World News, BBC World News
 
 **Tier 1.5 — Synthesize with framing note (conflict analysis):**
 Include only when threshold conditions are met (see sources section). Always attribute the stance explicitly.
@@ -137,7 +133,31 @@ All digest runs are logged to the **Newsletter Digest Tracker** base in Airtable
 | Content Quality | `fldlfRG0pnAZm4uv1` | "Full content", "Snippet only", or "Not fetched" |
 | Tier | `fld2DaeHEm1lYQ6MP` | "Tier 1", "Tier 1.5", "Tier 2", "Tier 3", or "Local" |
 
+### Retention cap — keep combined records under 500 (Airtable free plan)
+
+After logging the current run's records to Digest Runs and Newsletter Usage, check the combined total record count across both tables. If it exceeds 500, delete the oldest run(s) — starting from the single oldest Digest Runs record by date — along with all Newsletter Usage records tied to that run's Run ID, repeating until the combined total is back at or under 500. Always prune whole runs at once (never partial). If multiple Digest Runs records happen to share the same Run ID (a known pre-existing data-quality issue from early runs, before Run ID generation was reliable), treat them as one unit — delete all of them together or keep all of them together, never split a shared Run ID across keep/delete. Note the pruning action in the current run's Notes field, e.g. "Pruned N older runs (through YYYY-MM-DD) to stay under 500-record cap."
+
 Log **every** newsletter that appeared in the Gmail search results and was identified as a relevant newsletter — even if it contributed 0 stories (e.g. Semafor Flagship when snippets were too thin). This captures absence as well as presence. **Do not log** silently discarded sources (Semafor sub-editions, Edinburgh Live, NPR).
+
+**Removed sources (as of 2026-07-22, per `/newsletter-stats` review):** ProPublica, The Ink (Anand Giridharadas), MotorTrend, and Everything Is Amazing were dropped from the tracked source list and the Gmail search query. Across dozens of runs each, they contributed 0–1 stories total — ProPublica's emails were almost always fundraising appeals, The Ink's were personal notes with no news content, MotorTrend was product-review content that doesn't fit the digest format, and Everything Is Amazing ran consistently off-topic. If any of these resurface in search results anyway (they may still match on `@substack.com` or similar broad terms), discard them silently — do not log them in Newsletter Usage, the way Semafor sub-editions and Edinburgh Live are already handled above.
+
+**Newsletter naming in Airtable — use the exact canonical name below, every time.** Multiple naming variants for the same source (e.g. "The Dispatch" vs "The Dispatch (Morning)" vs "The Dispatch (G-File...)") fragment the stats that `/newsletter-stats` computes, since each variant is counted as a separate source. When logging to Newsletter Usage, always use the newsletter's bare canonical name from the source list above — never append edition, section, or story-topic qualifiers in parentheses. If a single source has genuinely distinct, separately-scheduled editions worth tracking apart (e.g. Axios AM vs Axios PM vs Axios Finish Line, which run on different schedules with different content), those are the only exceptions — use exactly those three names and no others for Axios. Every other source, regardless of which specific edition or story arrived that run, gets logged under one unchanging name:
+- `The Dispatch` (not "Morning", "G-File", "Wanderland", etc.)
+- `Semafor Flagship`
+- `Los Alamos Reporter`
+- `The Santa Fe New Mexican` (not "Santa Fe New Mexican", "Roundhouse Report", "Morning Headlines" — those are sections within it, not separate sources)
+- `Letters from an American`
+- `Reuters World News` and `Reuters Daily Briefing` (two genuinely distinct products — keep separate) and `Reuters Technology Roundup`
+- `BBC World News`
+- `ISW` (fold in every ISW report type — Iran Update, Russian Offensive Campaign Assessment, special reports — under this one name; use the Sections Used field, not the Newsletter name, to record which report it was)
+- `Decision Desk HQ`
+- `Al Jazeera`
+- `The Bulwark`
+- `The Telegraph`
+- `Source NM`
+- `BoomTown`
+
+If unsure whether a name is already canonical, check the current Newsletter Usage table for the most common existing spelling before creating a new one.
 
 ---
 
@@ -148,7 +168,7 @@ Log **every** newsletter that appeared in the Gmail search results and was ident
 Search for newsletters in the requested time window (default: past 12 hours). Use a broad query to catch all newsletter-style emails:
 
 ```
-newer_than:Xh (digest OR briefing OR flagship@semafor.com OR dispatch OR bulwark OR sourcenm OR "los alamos" OR flipside OR intrigue OR nicenews OR motortrend OR telegraph OR "The Kyiv Independent" OR judicialwatch.org OR axios OR propublica OR "understandingwar" OR "institute for the study of war" OR hello@newsletter.scotusblog.com OR @substack.com OR heathercoxrichardson OR "Letters from an American" OR "future perfect" OR futureperfect OR pewresearch OR usafacts OR notus OR giridharadas OR "santa fe new mexican" OR santafenewmexican OR stackoverflow OR acm OR cta@smartbrief.com OR wired OR updates.thedispatch.com OR aljazeera OR reuters OR bbc.co.uk OR bbc.com)
+newer_than:Xh (digest OR briefing OR flagship@semafor.com OR dispatch OR bulwark OR sourcenm OR "los alamos" OR flipside OR intrigue OR nicenews OR telegraph OR "The Kyiv Independent" OR judicialwatch.org OR axios OR "understandingwar" OR "institute for the study of war" OR hello@newsletter.scotusblog.com OR @substack.com OR heathercoxrichardson OR "Letters from an American" OR "future perfect" OR futureperfect OR pewresearch OR usafacts OR notus OR "santa fe new mexican" OR santafenewmexican OR stackoverflow OR acm OR cta@smartbrief.com OR wired OR updates.thedispatch.com OR aljazeera OR reuters OR bbc.co.uk OR bbc.com)
 ```
 
 Request up to 30–50 results. Scan the sender and subject fields to identify actual newsletters vs. promotional/transactional email. Discard:
@@ -173,20 +193,6 @@ For each identified newsletter thread, call `get_thread` with `messageFormat: FU
 **NPR:** NPR emails (Up First and others from `email@nl.npr.org`) do not include a plaintext MIME part — confirmed unfetchable. Do NOT call get_thread on NPR threads; it will return only a snippet. NPR has been removed from the active source list. If an NPR story looks important and isn't covered by other sources, use `web_search` on NPR.org directly.
 
 **Future Perfect (Vox):** Future Perfect emails from `newsletter@vox.com` are HTML-only — no plaintextBody available via get_thread. Do NOT call get_thread. Instead, when a Future Perfect email appears and the subject line looks relevant (science, AI, health, ethics, policy), use `web_fetch` on the article URL embedded in the snippet to retrieve the full text. Log as "Snippet only" if no web_fetch is performed, or "Full content" if web_fetch succeeds.
-
-**Managing HTML payload / context cost:** `get_thread` cannot be told to omit `htmlBody` — when it's present it comes back alongside `plaintextBody` regardless of `messageFormat`. For most sources this is harmless (plaintextBody dominates), but a known set of senders wrap a tiny amount of useful text in a very large HTML payload:
-
-- BBC News Briefing (`email.bbc.com`)
-- Santa Fe New Mexican, both editions (`santafenewmexican-email.com`)
-- Los Alamos Daily Post (Constant Contact / `shared1.ccsend.com`)
-- Reuters Daily Briefing and Semafor Flagship, occasionally
-
-If the tool result is large enough to trigger auto-redirect ("Tool result too large for context, stored at..."), that's actually the *good* outcome — use `bash_tool` (`python3 -c "import json; ..."`) to load the saved JSON and print only the `plaintextBody` field(s), never `cat` or `view` the raw file. This keeps the HTML out of context entirely.
-
-The harder case is when one of the senders above returns its bloated HTML *inline* rather than being auto-redirected — this has happened even for 50-100KB+ payloads and isn't fully predictable. There's no tool-level fix for this, so:
-1. Fetch these three local/wire sources **early** in Step 2, before lower-priority Tier 2/3 sources, so that if the run is running hot on context, it's a less important source that gets dropped rather than local news or the lead story.
-2. When reading a get_thread result, go straight to the `plaintextBody` value and ignore everything under `htmlBody` — don't read through it, quote it, or let it inform the digest even incidentally.
-3. If context is already tight after fetching several full-content sources, it's fine to fall back to the search-result snippet for one of these three and log it as "Snippet only (context budget)" rather than force a full fetch.
 
 ### Step 3: Write the digest
 
