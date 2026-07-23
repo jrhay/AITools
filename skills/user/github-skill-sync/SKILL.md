@@ -24,12 +24,14 @@ Do not use for `/mnt/skills/public/` or `/mnt/skills/examples/` — those are ma
 
 ## Auth
 
-Do NOT store the GitHub token in memory — a fine-grained PAT is a live credential, and memory files aren't a secrets vault (they're plain text, readable back into future conversations, and not scoped the way a proper secrets manager is).
+Use the fine-grained GitHub personal access token for jrhay/AITools (Contents
+read/write only) if one is already available in the current session's
+context. Never log, display, or write it to persistent memory.
 
-Instead, prompt for the token each time a push is needed in a session that doesn't already have it in context:
-"I need to push `<repo_path>` to jrhay/AITools — can you paste the GitHub token for this?"
-
-Once provided, use it only for pushes within the current conversation. Never write it to memory, never echo it back in full, and don't carry it forward into a new conversation — ask again next time. If several pushes happen in the same session, reuse the token already given rather than asking again for each file.
+If no token is available in the session, ask the user directly for the
+current fine-grained PAT before attempting to push — do not guess, reuse a
+token from an old conversation, or search past chats for one. Use whatever
+token they give you for this session only; don't persist it anywhere.
 
 ## Push procedure
 
@@ -39,7 +41,7 @@ Use the GitHub Contents API via `bash_tool` with `urllib` (no `gh` CLI, no `requ
 import base64, json, urllib.request, urllib.error
 from pathlib import Path
 
-TOKEN = "<token pasted by user this session>"
+TOKEN = "<token from session>"
 OWNER = "jrhay"
 REPO  = "AITools"
 
