@@ -31,10 +31,14 @@ read-only on disk anyway).
 
 ## Auth
 
-Use the same fine-grained GitHub personal access token used by
-`github-skill-sync` (stored in user memory, scoped to jrhay/AITools, Contents
-read/write). Available in every session — no need to ask the user for it.
-Never log or display the token.
+Same as `github-skill-sync`: use the fine-grained GitHub personal access
+token (jrhay/AITools, Contents read/write) if one is already available in
+the current session's context. Never log, display, or write it to
+persistent memory.
+
+If no token is available, ask the user directly for the current PAT — do
+not guess, reuse a token from an old conversation, or search past chats for
+one. Use it for this session only.
 
 ## Pull procedure
 
